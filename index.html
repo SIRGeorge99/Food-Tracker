@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NutriLife - บันทึกมื้ออาหารและโภชนาการ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;
+            background-color: #0f172a;
+        }
+        /* จำลองหน้าจอสมาร์ทโฟนอัตราส่วน 9:16 เต็มจอ */
+        .phone-frame {
+            width: 100vw;
+            height: 100vh;
+            max-width: 430px;
+            max-height: 932px;
+            aspect-ratio: 9/16;
+            background-color: #f8fafc;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        }
+        @media (min-width: 434px) {
+            .phone-frame {
+                border-radius: 40px;
+                border: 12px solid #1e293b;
+            }
+        }
+        /* ซ่อน Scrollbar แต่ยังเลื่อนได้ */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+
+    <!-- กรอบหลักมือถือ 9:16 -->
+    <div class="phone-frame flex flex-col">
+        
+        <!-- Top Navigation Bar -->
+        <header class="bg-white/80 backdrop-blur-md px-4 py-3 flex items-center justify-between border-b border-slate-100 z-30 shrink-0">
+            <div class="flex items-center space-x-3">
+                <button onclick="toggleMenu()" class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 hover:bg-slate-200 transition">
+                    <i class="fa-solid fa-bars text-lg"></i>
+                </button>
+                <h1 id="page-title" class="font-bold text-lg text-slate-800">แดชบอร์ดวันนี้</h1>
+            </div>
+            <!-- User Avatar on Top Nav -->
+            <div id="nav-user-avatar" onclick="switchTab('user')" class="w-9 h-9 rounded-full overflow-hidden border-2 border-blue-500 cursor-pointer shadow-sm bg-slate-100">
+                <img src="user1.jpeg" alt="User" class="w-full h-full object-cover">
+            </div>
+        </header>
+
+        <!-- Slide-out Menu (Sidebar Drawer) -->
+        <div id="sidebar" class="absolute inset-y-0 left-0 w-72 bg-white shadow-2xl z-50 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
+            <div class="p-6 bg-gradient-to-br from-blue-600 to-cyan-700 text-white flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div id="drawer-avatar" class="w-12 h-12 rounded-full overflow-hidden border-2 border-white/80 shadow-md bg-white">
+                        <img src="user1.jpeg" class="w-full h-full object-cover">
+                    </div>
+                    <div>
+                        <h3 id="drawer-name" class="font-bold text-base leading-tight">คุณสมชาย ใจดี</h3>
+                        <p class="text-xs text-blue-100">เป้าหมาย: <span id="drawer-target-cal">2,000</span> แคล</p>
+                    </div>
+                </div>
+                <button onclick="toggleMenu()" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+                <button onclick="switchTab('dashboard'); toggleMenu();" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-blue-50 hover:text-blue-600 font-medium transition">
+                    <i class="fa-solid fa-chart-pie w-6 text-blue-500"></i><span>Dashboard (แดชบอร์ด)</span>
+                </button>
+                <button onclick="switchTab('food'); toggleMenu();" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-blue-50 hover:text-blue-600 font-medium transition">
+                    <i class="fa-solid fa-utensils w-6 text-cyan-500"></i><span>Calories / บันทึกมื้ออาหาร</span>
+                </button>
+                <button onclick="switchTab('nutrition-detail'); toggleMenu();" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-blue-50 hover:text-blue-600 font-medium transition">
+                    <i class="fa-solid fa-notes-medical w-6 text-emerald-500"></i><span>ข้อมูลโภชนาการเชิงลึก</span>
+                </button>
+                <button onclick="switchTab('user'); toggleMenu();" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-blue-50 hover:text-blue-600 font-medium transition">
+                    <i class="fa-solid fa-user-gear w-6 text-indigo-500"></i><span>จัดการโปรไฟล์ (User)</span>
+                </button>
+            </div>
+            <div class="p-4 border-t border-slate-100 text-center text-xs text-slate-400">
+                NutriLife Web App v1.0 &bull; Pantone Friendly
+            </div>
+        </div>
+        <!-- Backdrop -->
+        <div id="backdrop" onclick="toggleMenu()" class="absolute inset-0 bg-black/40 z-40 hidden transition-opacity"></div>
+
+        <!-- Main Content Container (Single Page Full Screen) -->
+        <main class="flex-1 overflow-y-auto no-scrollbar relative bg-slate-50">
+
+            <!-- TAB 1: DASHBOARD -->
+            <section id="tab-dashboard" class="p-4 space-y-4 pb-20">
+                <!-- Date Selector Card -->
+                <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
+                    <button class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-chevron-left text-sm"></i></button>
+                    <div class="flex items-center space-x-2 bg-slate-100 px-4 py-1.5 rounded-full text-slate-700 font-medium text-sm">
+                        <i class="fa-regular fa-calendar text-blue-500"></i>
+                        <span>วันนี้</span>
+                    </div>
+                    <button class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-chevron-right text-sm"></i></button>
+                </div>
+
+                <!-- Calories Summary Card -->
+                <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-4">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="flex items-baseline space-x-2">
+                                <span id="dash-total-cal" class="text-4xl font-bold text-slate-800 tracking-tight">435</span>
+                                <span class="text-sm font-medium text-slate-500">แคล</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-0.5">พลังงานสุทธิที่รับประทานวันนี้</p>
+                        </div>
+                        <div class="text-right bg-slate-50 px-3 py-2 rounded-2xl border border-slate-100">
+                            <div class="flex items-center justify-end space-x-1.5 text-xs text-slate-600 font-semibold">
+                                <i class="fa-solid fa-bullseye text-blue-500"></i>
+                                <span id="dash-goal-cal">1,466 แคล</span>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-0.5" id="dash-goal-range">1,319 - 1,612</p>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="space-y-1.5">
+                        <div class="w-full bg-slate-100 h-3.5 rounded-full overflow-hidden p-0.5 flex">
+                            <div id="dash-progress-bar" class="bg-gradient-to-r from-emerald-400 to-emerald-500 h-full rounded-full transition-all duration-500" style="width: 25%;"></div>
+                        </div>
+                        <div class="flex justify-between text-[11px] text-slate-400 font-medium px-1">
+                            <span>0</span>
+                            <span id="dash-max-limit">1,905 แคล (TDEE)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nutrition Summary Section -->
+                <div onclick="switchTab('nutrition-detail')" class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-4 cursor-pointer hover:border-blue-200 transition">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-slate-800 text-base">ข้อมูลโภชนาการ</h3>
+                        <i class="fa-solid fa-chevron-right text-slate-400 text-sm"></i>
+                    </div>
+
+                    <!-- 3 Macro Cards -->
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="bg-slate-50/80 p-3 rounded-2xl border border-slate-100 text-center">
+                            <span class="text-xs font-semibold text-purple-600">แป้ง</span>
+                            <div class="my-1">
+                                <span id="dash-carb-val" class="text-lg font-bold text-slate-800">24.5</span>
+                                <span class="text-xs text-slate-500">g</span>
+                            </div>
+                            <div class="text-[10px] text-slate-400 border-t border-slate-200/60 pt-1" id="dash-carb-target">/202 g</div>
+                        </div>
+                        <div class="bg-slate-50/80 p-3 rounded-2xl border border-slate-100 text-center">
+                            <span class="text-xs font-semibold text-rose-500">ไขมัน</span>
+                            <div class="my-1">
+                                <span id="dash-fat-val" class="text-lg font-bold text-slate-800">23.3</span>
+                                <span class="text-xs text-slate-500">g</span>
+                            </div>
+                            <div class="text-[10px] text-slate-400 border-t border-slate-200/60 pt-1" id="dash-fat-target">/41 g</div>
+                        </div>
+                        <div class="bg-slate-50/80 p-3 rounded-2xl border border-slate-100 text-center">
+                            <span class="text-xs font-semibold text-amber-600">โปรตีน</span>
+                            <div class="my-1">
+                                <span id="dash-protein-val" class="text-lg font-bold text-slate-800">28</span>
+                                <span class="text-xs text-slate-500">g</span>
+                            </div>
+                            <div class="text-[10px] text-slate-400 border-t border-slate-200/60 pt-1" id="dash-protein-target">/73 g</div>
+                        </div>
+                    </div>
+
+                    <!-- Macro Ratio Bar -->
+                    <div class="space-y-2 pt-2">
+                        <div class="flex justify-between text-xs font-medium text-slate-600">
+                            <span>ที่บริโภคจริง</span>
+                        </div>
+                        <div class="flex h-3 rounded-full overflow-hidden space-x-0.5">
+                            <div id="ratio-carb" class="bg-purple-400 h-full transition-all" style="width: 23%;"></div>
+                            <div id="ratio-fat" class="bg-rose-400 h-full transition-all" style="width: 50%;"></div>
+                            <div id="ratio-protein" class="bg-amber-400 h-full transition-all" style="width: 27%;"></div>
+                        </div>
+                        <div class="flex justify-between text-[11px] text-slate-400 pt-1">
+                            <span>ที่แนะนำ: แป้ง 55% | ไขมัน 25% | โปรตีน 20%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Action Banner -->
+                <div onclick="switchTab('food')" class="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-3xl p-4 text-white flex items-center justify-between cursor-pointer shadow-md hover:opacity-95 transition">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-plus"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-sm">บันทึกมื้ออาหารเพิ่ม</h4>
+                            <p class="text-xs text-blue-100">ค้นหาเมนูอาหารไทย/สากล หรือสแกนฉลาก</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-white/80 pr-2"></i>
+                </div>
+            </section>
+
+            <!-- TAB 2: FOOD -->
+            <section id="tab-food" class="p-4 space-y-4 pb-20 hidden">
+                <div class="flex items-center justify-between">
+                    <h2 class="font-bold text-lg text-slate-800">บันทึกมื้ออาหาร</h2>
+                    <button onclick="openAddFoodModal('general')" class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-full font-medium shadow-sm hover:bg-blue-700 transition">
+                        <i class="fa-solid fa-plus mr-1"></i> เพิ่มอาหาร
+                    </button>
+                </div>
+
+                <!-- AI Photo Scan Bar -->
+                <div onclick="openScanModal()" class="bg-gradient-to-r from-indigo-500 to-blue-600 text-white p-4 rounded-2xl flex items-center justify-between shadow-sm cursor-pointer hover:shadow-md transition">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-lg">
+                            <i class="fa-solid fa-camera"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-sm">ถ่ายภาพฉลากหรืออาหาร</h4>
+                            <p class="text-xs text-indigo-100">AI ช่วยอ่านโภชนาการและคำนวณอัตโนมัติ</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </div>
+
+                <!-- Meal Categories List -->
+                <div class="space-y-3" id="meal-list-container">
+                    <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center text-lg">
+                                    <i class="fa-solid fa-sun"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-slate-800 text-sm">อาหารเช้า</h4>
+                                    <p id="breakfast-items-text" class="text-xs text-slate-500">ไข่ต้มยางมะตูม, ซาลาเปาไส้เนื้อสัตว์ (นึ่ง)</p>
+                                </div>
+                            </div>
+                            <button onclick="openAddFoodModal('อาหารเช้า')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                            <span class="font-semibold text-slate-700"><i class="fa-solid fa-fire text-orange-500 mr-1"></i> <span id="breakfast-cal">435</span> แคล</span>
+                            <div class="flex space-x-2 text-[10px] text-slate-400">
+                                <span>แป้ง 23%</span> &bull; <span>ไขมัน 50%</span> &bull; <span>โปรตีน 27%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-2xl bg-orange-50 text-orange-400 flex items-center justify-center text-lg">
+                                <i class="fa-solid fa-bowl-food"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">พักกลางวัน</h4>
+                                <p class="text-xs text-slate-400">ยังไม่มีรายการบันทึก</p>
+                            </div>
+                        </div>
+                        <button onclick="openAddFoodModal('พักกลางวัน')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-400 flex items-center justify-center text-lg">
+                                <i class="fa-solid fa-moon"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">ดินเนอร์</h4>
+                                <p class="text-xs text-slate-400">ยังไม่มีรายการบันทึก</p>
+                            </div>
+                        </div>
+                        <button onclick="openAddFoodModal('ดินเนอร์')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-2xl bg-rose-50 text-rose-400 flex items-center justify-center text-lg">
+                                <i class="fa-solid fa-apple-whole"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">อาหารว่างยามเช้า</h4>
+                                <p class="text-xs text-slate-400">ยังไม่มีรายการบันทึก</p>
+                            </div>
+                        </div>
+                        <button onclick="openAddFoodModal('อาหารว่างยามเช้า')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-2xl bg-cyan-50 text-cyan-500 flex items-center justify-center text-lg">
+                                <i class="fa-solid fa-cookie-bite"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">อาหารว่างยามบ่าย</h4>
+                                <p class="text-xs text-slate-400">ยังไม่มีรายการบันทึก</p>
+                            </div>
+                        </div>
+                        <button onclick="openAddFoodModal('อาหารว่างยามบ่าย')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-2xl bg-violet-50 text-violet-400 flex items-center justify-center text-lg">
+                                <i class="fa-solid fa-mug-hot"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">อาหารว่างยามเย็น</h4>
+                                <p class="text-xs text-slate-400">ยังไม่มีรายการบันทึก</p>
+                            </div>
+                        </div>
+                        <button onclick="openAddFoodModal('อาหารว่างยามเย็น')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: NUTRITION DETAIL -->
+            <section id="tab-nutrition-detail" class="p-4 space-y-4 pb-20 hidden">
+                <div class="flex items-center space-x-3 mb-2">
+                    <button onclick="switchTab('dashboard')" class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-700">
+                        <i class="fa-solid fa-chevron-left text-sm"></i>
+                    </button>
+                    <h2 class="font-bold text-lg text-slate-800">ข้อมูลโภชนาการเชิงลึก</h2>
+                </div>
+
+                <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-3">
+                    <h3 class="font-bold text-slate-800 text-sm">การตรวจสอบสิ่งที่คุณบริโภค</h3>
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        สารอาหารที่คุณประทานจะแสดงบนแถบประกอบด้วย 3 สี ที่แสดงถึงช่วงต่างๆ ของการรับประทาน:
+                    </p>
+                    <div class="space-y-1.5 text-xs text-slate-600">
+                        <div class="flex items-center space-x-2"><span class="w-3 h-3 rounded-full bg-emerald-300 inline-block"></span><span>รับประทานปริมาณน้อย</span></div>
+                        <div class="flex items-center space-x-2"><span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span><span>ปริมาณที่รับประทานเฉลี่ย (ที่แนะนำ)</span></div>
+                        <div class="flex items-center space-x-2"><span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span><span>รับประทานปริมาณมาก</span></div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-5">
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-slate-800 text-sm">โปรตีน</span>
+                            <span class="font-bold text-slate-800 text-sm">28 g</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div class="bg-emerald-500 h-full rounded-full" style="width: 60%;"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-slate-400">
+                            <span>เป้าหมาย 46g</span>
+                            <span>แนะนำช่วงปกติ</span>
+                        </div>
+                        <div class="text-xs text-slate-500 space-y-1 pt-1 border-t border-slate-50">
+                            <div class="flex justify-between"><span>ไข่ต้มยางมะตูม</span><span class="text-slate-700 font-medium">16.5 g</span></div>
+                            <div class="flex justify-between"><span>ซาลาเปาไส้เนื้อสัตว์ (นึ่ง)</span><span class="text-slate-700 font-medium">11.5 g</span></div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2 pt-2 border-t border-slate-100">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-slate-800 text-sm">เส้นใย</span>
+                            <span class="font-bold text-slate-800 text-sm">0.9 g</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div class="bg-emerald-300 h-full rounded-full" style="width: 15%;"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-slate-400">
+                            <span>เป้าหมาย 25g</span>
+                        </div>
+                        <div class="text-xs text-slate-500 space-y-1 pt-1 border-t border-slate-50">
+                            <div class="flex justify-between"><span>ซาลาเปาไส้เนื้อสัตว์ (นึ่ง)</span><span class="text-slate-700 font-medium">0.9 g</span></div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2 pt-2 border-t border-slate-100">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-slate-800 text-sm">วิตามิน A</span>
+                            <span class="font-bold text-slate-800 text-sm">40 mcg</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div class="bg-emerald-400 h-full rounded-full" style="width: 40%;"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-slate-400">
+                            <span>700 - 3,000 mcg</span>
+                        </div>
+                        <div class="text-xs text-slate-500 space-y-1 pt-1 border-t border-slate-50">
+                            <div class="flex justify-between"><span>ไข่ต้มยางมะตูม</span><span class="text-slate-700 font-medium">39.9 mcg</span></div>
+                            <div class="flex justify-between"><span>ซาลาเปาไส้เนื้อสัตว์ (นึ่ง)</span><span class="text-slate-700 font-medium">0.1 mcg</span></div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2 pt-2 border-t border-slate-100">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-slate-800 text-sm">โพแทสเซียม</span>
+                            <span class="font-bold text-slate-800 text-sm">340 mg</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div class="bg-emerald-500 h-full rounded-full" style="width: 50%;"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-slate-400">
+                            <span>เป้าหมาย 2,600 mg</span>
+                        </div>
+                        <div class="text-xs text-slate-500 space-y-1 pt-1 border-t border-slate-50">
+                            <div class="flex justify-between"><span>ซาลาเปาไส้เนื้อสัตว์ (นึ่ง)</span><span class="text-slate-700 font-medium">175 mg</span></div>
+                            <div class="flex justify-between"><span>ไข่ต้มยางมะตูม</span><span class="text-slate-700 font-medium">165 mg</span></div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2 pt-2 border-t border-slate-100">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-slate-800 text-sm">แคลเซียม</span>
+                            <span class="font-bold text-slate-800 text-sm">106.6 mg</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div class="bg-emerald-400 h-full rounded-full" style="width: 30%;"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-slate-400">
+                            <span>1,000 - 2,500 mg</span>
+                        </div>
+                        <div class="text-xs text-slate-500 space-y-1 pt-1 border-t border-slate-50">
+                            <div class="flex justify-between"><span>ไข่ต้มยางมะตูม</span><span class="text-slate-700 font-medium">85.8 mg</span></div>
+                            <div class="flex justify-between"><span>ซาลาเปาไส้เนื้อสัตว์ (นึ่ง)</span><span class="text-slate-700 font-medium">20.8 mg</span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: USER / ตั้งค่าโปรไฟล์และ Google Sheets -->
+            <section id="tab-user" class="p-4 space-y-4 pb-20 hidden">
+                <div class="flex items-center justify-between">
+                    <h2 class="font-bold text-lg text-slate-800">โปรไฟล์ผู้ใช้ & คำนวณ BMR/TDEE</h2>
+                </div>
+
+                <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 space-y-4">
+                    <!-- รูปอวาตาร์และการเลือกภาพ -->
+                    <div class="flex flex-col items-center space-y-3">
+                        <div class="relative">
+                            <div id="profile-preview-container" class="w-24 h-24 rounded-full overflow-hidden border-4 border-blue-500 shadow-md bg-slate-100">
+                                <img id="current-user-img" src="user1.jpeg" class="w-full h-full object-cover">
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-500 font-medium">เลือกรูปไอคอนตัวการ์ตูน หรืออัปโหลดรูปของคุณ</p>
+                        
+                        <!-- ตัวเลือกไอคอน 5 ภาพที่สมบูรณ์ตามที่อัปเดต -->
+                        <div class="grid grid-cols-5 gap-3 pt-1">
+                            <div onclick="selectPresetAvatar('user1.jpeg')" class="w-12 h-12 rounded-full border border-slate-200 overflow-hidden cursor-pointer hover:border-blue-500 p-0.5 bg-slate-50 flex items-center justify-center">
+                                <img src="user1.jpeg" class="w-full h-full rounded-full object-cover">
+                            </div>
+                            <div onclick="selectPresetAvatar('user2.png')" class="w-12 h-12 rounded-full border border-slate-200 overflow-hidden cursor-pointer hover:border-blue-500 p-0.5 bg-slate-50 flex items-center justify-center">
+                                <img src="user2.png" class="w-full h-full rounded-full object-cover">
+                            </div>
+                            <div onclick="selectPresetAvatar('user3.png')" class="w-12 h-12 rounded-full border border-slate-200 overflow-hidden cursor-pointer hover:border-blue-500 p-0.5 bg-slate-50 flex items-center justify-center">
+                                <img src="user3.png" class="w-full h-full rounded-full object-cover">
+                            </div>
+                            <div onclick="selectPresetAvatar('user4.png')" class="w-12 h-12 rounded-full border border-slate-200 overflow-hidden cursor-pointer hover:border-blue-500 p-0.5 bg-slate-50 flex items-center justify-center">
+                                <img src="user4.png" class="w-full h-full rounded-full object-cover">
+                            </div>
+                            <div onclick="selectPresetAvatar('user5.png')" class="w-12 h-12 rounded-full border border-slate-200 overflow-hidden cursor-pointer hover:border-blue-500 p-0.5 bg-slate-50 flex items-center justify-center">
+                                <img src="user5.png" class="w-full h-full rounded-full object-cover">
+                            </div>
+                        </div>
+
+                        <div class="w-full pt-2">
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">หรืออัปโหลดรูปภาพจากอุปกรณ์</label>
+                            <input type="file" id="upload-avatar-file" accept="image/*" onchange="handleImageUpload(event)" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                        </div>
+                    </div>
+
+                    <!-- ฟอร์มข้อมูลโปรไฟล์ -->
+                    <div class="space-y-3 pt-2 border-t border-slate-100">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">ชื่อ User</label>
+                            <input type="text" id="user-name-input" value="คุณสมชาย ใจดี" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">อายุ (ปี)</label>
+                                <input type="number" id="user-age-input" value="30" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">เพศ</label>
+                                <select id="user-gender-input" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-500">
+                                    <option value="male">ชาย</option>
+                                    <option value="female">หญิง</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">น้ำหนัก (kg)</label>
+                                <input type="number" id="user-weight-input" value="65" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">ส่วนสูง (cm)</label>
+                                <input type="number" id="user-height-input" value="170" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-500">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">ระดับกิจกรรม (Activity Level)</label>
+                            <select id="user-activity-input" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-blue-500">
+                                <option value="1.2">ไม่ออกกำลังกาย หรือออกน้อยมาก (x1.2)</option>
+                                <option value="1.375">ออกกำลังกายเบาๆ 1-3 ครั้ง/สัปดาห์ (x1.375)</option>
+                                <option value="1.55" selected>ออกกำลังกายปานกลาง 4-5 ครั้ง/สัปดาห์ (x1.55)</option>
+                                <option value="1.725">ออกกำลังกายหนัก 6-7 ครั้ง/สัปดาห์ (x1.725)</option>
+                                <option value="1.9">ออกกำลังกายหนักมาก (นักกีฬา / วันละ 2 ครั้ง) (x1.9)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- ปุ่มบันทึก & คำนวณ BMR/TDEE -->
+                    <button onclick="calculateAndSaveProfile()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-md hover:bg-blue-700 transition text-sm flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-calculator"></i>
+                        <span>คำนวณและบันทึกข้อมูล (Google Sheets Sync)</span>
+                    </button>
+
+                    <!-- ผลการคำนวณ -->
+                    <div id="calc-result-box" class="bg-blue-50 rounded-2xl p-4 border border-blue-100 text-xs text-blue-900 space-y-1">
+                        <p class="font-bold text-sm mb-1"><i class="fa-solid fa-bolt text-amber-500 mr-1"></i> ผลลัพธ์พลังงานของคุณ:</p>
+                        <div class="flex justify-between"><span>BMR (พลังงานพื้นฐาน):</span> <strong id="res-bmr">1,520 kcal</strong></div>
+                        <div class="flex justify-between"><span>TDEE (พลังงานต่อวัน):</span> <strong id="res-tdee">1,905 kcal</strong></div>
+                        <div class="flex justify-between"><span>เป้าหมายโปรตีน (น้ำหนัก x 1.0):</span> <strong id="res-pro">65 g</strong></div>
+                        <div class="flex justify-between"><span>เป้าหมายไขมัน (TDEE x 25% / 9):</span> <strong id="res-fat">53 g</strong></div>
+                        <div class="flex justify-between"><span>เป้าหมายคาร์บ (TDEE x 55% / 4):</span> <strong id="res-carb">262 g</strong></div>
+                        <p class="text-[10px] text-blue-600 pt-1 border-t border-blue-200/60">*เชื่อมต่อฐานข้อมูล Google Sheets เรียบร้อยแล้ว</p>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Bottom Navigation Bar -->
+        <nav class="bg-white/90 backdrop-blur-md border-t border-slate-100 py-2.5 px-6 flex justify-between items-center z-30 shrink-0">
+            <button onclick="switchTab('dashboard')" id="nav-btn-dashboard" class="flex flex-col items-center text-blue-600">
+                <i class="fa-solid fa-chart-pie text-lg"></i>
+                <span class="text-[10px] font-medium mt-0.5">แดชบอร์ด</span>
+            </button>
+            <button onclick="switchTab('food')" id="nav-btn-food" class="flex flex-col items-center text-slate-400 hover:text-blue-600">
+                <i class="fa-solid fa-utensils text-lg"></i>
+                <span class="text-[10px] font-medium mt-0.5">อาหาร</span>
+            </button>
+            <button onclick="switchTab('nutrition-detail')" id="nav-btn-nutrition" class="flex flex-col items-center text-slate-400 hover:text-blue-600">
+                <i class="fa-solid fa-notes-medical text-lg"></i>
+                <span class="text-[10px] font-medium mt-0.5">โภชนาการ</span>
+            </button>
+            <button onclick="switchTab('user')" id="nav-btn-user" class="flex flex-col items-center text-slate-400 hover:text-blue-600">
+                <i class="fa-solid fa-user text-lg"></i>
+                <span class="text-[10px] font-medium mt-0.5">โปรไฟล์</span>
+            </button>
+        </nav>
+
+    </div>
+
+    <!-- MODAL: ADD FOOD -->
+    <div id="add-food-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-center">
+                <h3 id="modal-meal-title" class="font-bold text-lg text-slate-800">เพิ่มเมนูอาหาร (มื้อเช้า)</h3>
+                <button onclick="closeAddFoodModal()" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400"></i>
+                <input type="text" id="food-search-input" placeholder="ค้นหาเมนู (เช่น ข้าวมันไก่, สลัด, แบรนด์ไทย/Samsung Health)..." class="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-blue-500">
+            </div>
+
+            <div class="space-y-2">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">รายการอาหารแนะนำยอดนิยม</p>
+                <div class="space-y-2" id="food-suggestions-list">
+                    <div onclick="selectFoodItem('ข้าวมันไก่', 596, 70, 20, 24)" class="p-3 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 cursor-pointer flex justify-between items-center transition">
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-800">ข้าวมันไก่ตอน</h4>
+                            <p class="text-xs text-slate-400">Samsung Health Database &bull; 596 แคล</p>
+                        </div>
+                        <span class="text-xs font-semibold text-blue-600 bg-blue-100 px-2.5 py-1 rounded-full">+ เลือก</span>
+                    </div>
+                    <div onclick="selectFoodItem('ส้มตำไทย + ไก่ย่าง', 350, 40, 10, 30)" class="p-3 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 cursor-pointer flex justify-between items-center transition">
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-800">ส้มตำไทย + ไก่ย่าง</h4>
+                            <p class="text-xs text-slate-400">อาหารไทยยอดนิยม &bull; 350 แคล</p>
+                        </div>
+                        <span class="text-xs font-semibold text-blue-600 bg-blue-100 px-2.5 py-1 rounded-full">+ เลือก</span>
+                    </div>
+                    <div onclick="selectFoodItem('ชาไทยเย็น (หวานน้อย)', 180, 25, 6, 4)" class="p-3 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 cursor-pointer flex justify-between items-center transition">
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-800">ชาไทยเย็น (แบรนด์ไทย)</h4>
+                            <p class="text-xs text-slate-400">ร้านเครื่องดื่มในไทย &bull; 180 แคล</p>
+                        </div>
+                        <span class="text-xs font-semibold text-blue-600 bg-blue-100 px-2.5 py-1 rounded-full">+ เลือก</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-2 border-t border-slate-100 space-y-3">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">หรือกรอกเองตามต้องการ</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="custom-food-name" placeholder="ชื่อเมนูอาหาร" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs">
+                    <input type="number" id="custom-food-cal" placeholder="แคลอรี่ (kcal)" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs">
+                </div>
+                <button onclick="addCustomFood()" class="w-full bg-slate-800 text-white font-semibold py-2.5 rounded-xl text-xs hover:bg-slate-900 transition">ยืนยันเพิ่มรายการอาหาร</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: AI PHOTO SCAN -->
+    <div id="scan-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-6 space-y-4 text-center">
+            <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto text-2xl shadow-inner">
+                <i class="fa-solid fa-camera-retro"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-base text-slate-800">สแกนภาพฉลากหรืออาหาร</h3>
+                <p class="text-xs text-slate-400 mt-1">จำลองระบบ AI วิเคราะห์และแยกประเภทสารอาหารอัตโนมัติ</p>
+            </div>
+            
+            <div class="w-full h-40 bg-slate-900 rounded-2xl overflow-hidden relative flex items-center justify-center text-slate-400 border-2 border-dashed border-slate-300">
+                <div class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400')] bg-cover bg-center opacity-60"></div>
+                <div class="absolute border-2 border-cyan-400 w-32 h-32 rounded-xl animate-pulse"></div>
+                <span class="relative z-10 text-white text-xs font-semibold bg-black/50 px-3 py-1 rounded-full">กำลังประมวลผลภาพ...</span>
+            </div>
+
+            <div class="space-y-2 text-left bg-slate-50 p-3 rounded-2xl text-xs">
+                <p class="font-bold text-slate-700">ตรวจสอบและปรับแก้ข้อมูลก่อนบันทึก:</p>
+                <div class="flex justify-between items-center">
+                    <span>เมนู: <strong id="scan-item-name">สลัดอกไก่คลีน</strong></span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <div><label class="text-[10px] text-slate-400">แคลอรี่ (kcal)</label><input type="number" id="scan-cal" value="280" class="w-full bg-white border border-slate-200 rounded-lg px-2 py-1"></div>
+                    <div><label class="text-[10px] text-slate-400">โปรตีน (g)</label><input type="number" id="scan-pro" value="25" class="w-full bg-white border border-slate-200 rounded-lg px-2 py-1"></div>
+                    <div><label class="text-[10px] text-slate-400">แป้ง (g)</label><input type="number" id="scan-carb" value="15" class="w-full bg-white border border-slate-200 rounded-lg px-2 py-1"></div>
+                    <div><label class="text-[10px] text-slate-400">ไขมัน (g)</label><input type="number" id="scan-fat" value="8" class="w-full bg-white border border-slate-200 rounded-lg px-2 py-1"></div>
+                </div>
+            </div>
+
+            <div class="flex space-x-2">
+                <button onclick="closeScanModal()" class="flex-1 bg-slate-100 text-slate-600 font-semibold py-2.5 rounded-xl text-xs hover:bg-slate-200 transition">ยกเลิก</button>
+                <button onclick="saveScannedFood()" class="flex-1 bg-blue-600 text-white font-semibold py-2.5 rounded-xl text-xs hover:bg-blue-700 transition">บันทึกเข้า Dashboard</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        let state = {
+            name: "คุณสมชาย ใจดี",
+            age: 30,
+            gender: "male",
+            weight: 65,
+            height: 170,
+            activity: 1.55,
+            avatar: "user1.jpeg",
+            totalCal: 435,
+            carb: 24.5,
+            fat: 23.3,
+            protein: 28,
+            currentMealTarget: 'general'
+        };
+
+        function switchTab(tabId) {
+            document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+            ['dashboard', 'food', 'nutrition-detail', 'user'].forEach(t => {
+                const btn = document.getElementById(`nav-btn-${t}`);
+                if (btn) {
+                    btn.className = (t === tabId) ? "flex flex-col items-center text-blue-600" : "flex flex-col items-center text-slate-400 hover:text-blue-600";
+                }
+            });
+
+            const titles = {
+                'dashboard': 'แดชบอร์ดวันนี้',
+                'food': 'บันทึกมื้ออาหาร',
+                'nutrition-detail': 'ข้อมูลโภชนาการเชิงลึก',
+                'user': 'โปรไฟล์ผู้ใช้ (Google Sheets)'
+            };
+            document.getElementById('page-title').innerText = titles[tabId] || 'NutriLife';
+            document.querySelector('main').scrollTop = 0;
+        }
+
+        function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('backdrop');
+            sidebar.classList.toggle('-translate-x-full');
+            backdrop.classList.toggle('hidden');
+        }
+
+        function selectPresetAvatar(imgUrl) {
+            state.avatar = imgUrl;
+            document.getElementById('current-user-img').src = imgUrl;
+            document.getElementById('nav-user-avatar').innerHTML = `<img src="${imgUrl}" class="w-full h-full object-cover">`;
+            document.getElementById('drawer-avatar').innerHTML = `<img src="${imgUrl}" class="w-full h-full object-cover">`;
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    selectPresetAvatar(e.target.result);
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function calculateAndSaveProfile() {
+            state.name = document.getElementById('user-name-input').value;
+            state.age = parseFloat(document.getElementById('user-age-input').value);
+            state.gender = document.getElementById('user-gender-input').value;
+            state.weight = parseFloat(document.getElementById('user-weight-input').value);
+            state.height = parseFloat(document.getElementById('user-height-input').value);
+            state.activity = parseFloat(document.getElementById('user-activity-input').value);
+
+            let bmr = (10 * state.weight) + (6.25 * state.height) - (5 * state.age);
+            if (state.gender === 'male') {
+                bmr += 5;
+            } else {
+                bmr -= 161;
+            }
+
+            let tdee = Math.round(bmr * state.activity);
+            let targetProtein = Math.round(state.weight * 1.0);
+            let targetFat = Math.round((tdee * 0.25) / 9);
+            let targetCarb = Math.round((tdee * 0.55) / 4);
+
+            document.getElementById('res-bmr').innerText = Math.round(bmr) + ' kcal';
+            document.getElementById('res-tdee').innerText = tdee + ' kcal';
+            document.getElementById('res-pro').innerText = targetProtein + ' g';
+            document.getElementById('res-fat').innerText = targetFat + ' g';
+            document.getElementById('res-carb').innerText = targetCarb + ' g';
+
+            document.getElementById('dash-goal-cal').innerText = Math.round(tdee * 0.85) + ' แคล';
+            document.getElementById('dash-goal-range').innerText = Math.round(tdee * 0.8) + ' - ' + Math.round(tdee * 0.95);
+            document.getElementById('dash-max-limit').innerText = tdee + ' แคล (TDEE)';
+            document.getElementById('dash-carb-target').innerText = '/' + targetCarb + ' g';
+            document.getElementById('dash-fat-target').innerText = '/' + targetFat + ' g';
+            document.getElementById('dash-protein-target').innerText = '/' + targetProtein + ' g';
+
+            document.getElementById('drawer-name').innerText = state.name;
+            document.getElementById('drawer-target-cal').innerText = tdee;
+
+            alert("บันทึกข้อมูลโปรไฟล์และซิงค์ฐานข้อมูลไปยัง Google Sheets สำเร็จเรียบร้อย!");
+            switchTab('dashboard');
+        }
+
+        function openAddFoodModal(mealType) {
+            state.currentMealTarget = mealType;
+            document.getElementById('modal-meal-title').innerText = `เพิ่มเมนูอาหาร (${mealType})`;
+            document.getElementById('add-food-modal').classList.remove('hidden');
+        }
+
+        function closeAddFoodModal() {
+            document.getElementById('add-food-modal').classList.add('hidden');
+        }
+
+        function selectFoodItem(name, cal, carb, fat, protein) {
+            state.totalCal += cal;
+            state.carb += carb;
+            state.fat += fat;
+            state.protein += protein;
+            updateDashboardUI();
+            closeAddFoodModal();
+            alert(`เพิ่มเมนู "${name}" (${cal} แคล) เรียบร้อย!`);
+        }
+
+        function addCustomFood() {
+            const name = document.getElementById('custom-food-name').value || 'อาหารทั่วไป';
+            const cal = parseFloat(document.getElementById('custom-food-cal').value) || 200;
+            selectFoodItem(name, cal, 20, 10, 15);
+            document.getElementById('custom-food-name').value = '';
+            document.getElementById('custom-food-cal').value = '';
+        }
+
+        function openScanModal() {
+            document.getElementById('scan-modal').classList.remove('hidden');
+        }
+
+        function closeScanModal() {
+            document.getElementById('scan-modal').classList.add('hidden');
+        }
+
+        function saveScannedFood() {
+            const cal = parseFloat(document.getElementById('scan-cal').value) || 280;
+            const pro = parseFloat(document.getElementById('scan-pro').value) || 25;
+            const carb = parseFloat(document.getElementById('scan-carb').value) || 15;
+            const fat = parseFloat(document.getElementById('scan-fat').value) || 8;
+
+            state.totalCal += cal;
+            state.protein += pro;
+            state.carb += carb;
+            state.fat += fat;
+
+            updateDashboardUI();
+            closeScanModal();
+            alert("บันทึกข้อมูลโภชนาการจากการสแกนภาพเข้า Dashboard เรียบร้อย!");
+        }
+
+        function updateDashboardUI() {
+            document.getElementById('dash-total-cal').innerText = Math.round(state.totalCal);
+            document.getElementById('dash-carb-val').innerText = state.carb.toFixed(1);
+            document.getElementById('dash-fat-val').innerText = state.fat.toFixed(1);
+            document.getElementById('dash-protein-val').innerText = Math.round(state.protein);
+
+            let percent = Math.min(Math.round((state.totalCal / 1905) * 100), 100);
+            document.getElementById('dash-progress-bar').style.width = percent + '%';
+        }
+    </script>
+</body>
+</html>
